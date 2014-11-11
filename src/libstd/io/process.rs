@@ -971,7 +971,7 @@ mod tests {
         let prog = pwd_cmd().spawn().unwrap();
 
         let output = String::from_utf8(prog.wait_with_output().unwrap().output).unwrap();
-        let parent_dir = os::getcwd();
+        let parent_dir = os::getcwd().unwrap();
         let child_dir = Path::new(output.as_slice().trim());
 
         let parent_stat = parent_dir.stat().unwrap();
@@ -986,7 +986,7 @@ mod tests {
         use os;
         // test changing to the parent of os::getcwd() because we know
         // the path exists (and os::getcwd() is not expected to be root)
-        let parent_dir = os::getcwd().dir_path();
+        let parent_dir = os::getcwd().unwrap().dir_path();
         let prog = pwd_cmd().cwd(&parent_dir).spawn().unwrap();
 
         let output = String::from_utf8(prog.wait_with_output().unwrap().output).unwrap();

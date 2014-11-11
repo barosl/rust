@@ -73,11 +73,9 @@ pub fn num_cpus() -> uint {
 pub const TMPBUF_SZ : uint = 1000u;
 const BUF_BYTES : uint = 2048u;
 
-/// Returns the current working directory as a Path.
+/// Returns the current working directory as a `Path`.
 ///
-/// # Failure
-///
-/// Fails if the current working directory value is invalid:
+/// Returns `None` if the current working directory value is invalid:
 /// Possibles cases:
 ///
 /// * Current directory does not exist.
@@ -89,28 +87,27 @@ const BUF_BYTES : uint = 2048u;
 /// use std::os;
 ///
 /// // We assume that we are in a valid directory like "/home".
-/// let current_working_directory = os::getcwd();
+/// let current_working_directory = os::getcwd().unwrap();
 /// println!("The current directory is {}", current_working_directory.display());
 /// // /home
 /// ```
 #[cfg(unix)]
-pub fn getcwd() -> Path {
+pub fn getcwd() -> Option<Path> {
     use c_str::CString;
 
     let mut buf = [0 as c_char, ..BUF_BYTES];
     unsafe {
         if libc::getcwd(buf.as_mut_ptr(), buf.len() as libc::size_t).is_null() {
-            panic!()
+            None
+        } else {
+            Some(Path::new(CString::new(buf.as_ptr(), false)))
         }
-        Path::new(CString::new(buf.as_ptr(), false))
     }
 }
 
-/// Returns the current working directory as a Path.
+/// Returns the current working directory as a `Path`.
 ///
-/// # Failure
-///
-/// Fails if the current working directory value is invalid.
+/// Returns `None` if the current working directory value is invalid:
 /// Possibles cases:
 ///
 /// * Current directory does not exist.
@@ -122,23 +119,26 @@ pub fn getcwd() -> Path {
 /// use std::os;
 ///
 /// // We assume that we are in a valid directory like "C:\\Windows".
-/// let current_working_directory = os::getcwd();
+/// let current_working_directory = os::getcwd().unwrap();
 /// println!("The current directory is {}", current_working_directory.display());
 /// // C:\\Windows
 /// ```
 #[cfg(windows)]
-pub fn getcwd() -> Path {
+pub fn getcwd() -> Option<Path> {
     use libc::DWORD;
     use libc::GetCurrentDirectoryW;
 
     let mut buf = [0 as u16, ..BUF_BYTES];
     unsafe {
         if libc::GetCurrentDirectoryW(buf.len() as DWORD, buf.as_mut_ptr()) == 0 as DWORD {
-            panic!();
+            return None;
         }
     }
-    Path::new(String::from_utf16(::str::truncate_utf16_at_nul(buf))
-              .expect("GetCurrentDirectoryW returned invalid UTF-16"))
+
+    match String::from_utf16(::str::truncate_utf16_at_nul(buf)) {
+        Some(ref cwd) => Some(Path::new(cwd)),
+        None => None, // GetCurrentDirectoryW returned invalid UTF-16
+    }
 }
 
 #[cfg(windows)]
@@ -833,13 +833,18 @@ pub fn tmpdir() -> Path {
 // NB: this is here rather than in path because it is a form of environment
 // querying; what it does depends on the process working directory, not just
 // the input paths.
-pub fn make_absolute(p: &Path) -> Path {
+pub fn make_absolute(p: &Path) -> Option<Path> {
     if p.is_absolute() {
-        p.clone()
+        Some(p.clone())
     } else {
         let mut ret = getcwd();
-        ret.push(p);
-        ret
+        match ret {
+            Some(mut cwd) => {
+                cwd.push(p);
+                Some(cwd)
+            }
+            None => None,
+        }
     }
 }
 
@@ -1877,11 +1882,11 @@ mod tests {
     fn test() {
         assert!((!Path::new("test-path").is_absolute()));
 
-        let cwd = getcwd();
+        let cwd = getcwd().unwrap();
         debug!("Current working directory: {}", cwd.display());
 
-        debug!("{}", make_absolute(&Path::new("test-path")).display());
-        debug!("{}", make_absolute(&Path::new("/usr/bin")).display());
+        debug!("{}", make_absolute(&Path::new("test-path")).unwrap().display());
+        debug!("{}", make_absolute(&Path::new("/usr/bin")).unwrap().display());
     }
 
     #[test]

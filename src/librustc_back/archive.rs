@@ -229,7 +229,7 @@ impl<'a> ArchiveBuilder<'a> {
     pub fn build(self) -> Archive<'a> {
         // Get an absolute path to the destination, so `ar` will work even
         // though we run it from `self.work_dir`.
-        let abs_dst = os::getcwd().join(&self.archive.dst);
+        let abs_dst = os::getcwd().unwrap().join(&self.archive.dst);
         assert!(!abs_dst.is_relative());
         let mut args = vec![&abs_dst];
         let mut total_len = abs_dst.as_vec().len();
