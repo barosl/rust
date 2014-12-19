@@ -2247,7 +2247,7 @@ impl<'a> fmt::Show for Source<'a> {
             cols += 1;
             tmp /= 10;
         }
-        try!(write!(fmt, "<pre class='line-numbers'>"));
+        try!(write!(fmt, "<pre class='line-numbers' onclick='alert(event.target);'>"));
         for i in range(1, lines + 1) {
             try!(write!(fmt, "<span id='{0}'>{0:1$}</span>\n", i, cols));
         }
