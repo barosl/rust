@@ -1108,6 +1108,7 @@ fn link_pattern<'a, 'tcx>(rcx: &Rcx<'a, 'tcx>,
                 }
 
                 // `[_, ..slice, _]` pattern
+                /*
                 ast::PatVec(_, Some(ref slice_pat), _) => {
                     match mc.cat_slice_pattern(sub_cmt, &**slice_pat) {
                         Ok((slice_cmt, slice_mutbl, slice_r)) => {
@@ -1118,6 +1119,7 @@ fn link_pattern<'a, 'tcx>(rcx: &Rcx<'a, 'tcx>,
                         Err(()) => {}
                     }
                 }
+                */
                 _ => {}
             }
         });

@@ -103,7 +103,7 @@ pub struct MatchCheckCtxt<'a, 'tcx: 'a> {
     pub param_env: ParameterEnvironment<'a, 'tcx>,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum Constructor {
     /// The constructor of all patterns that don't vary by constructor,
     /// e.g. struct patterns and fixed-length arrays.
@@ -158,6 +158,7 @@ fn check_expr(cx: &mut MatchCheckCtxt, ex: &ast::Expr) {
     visit::walk_expr(cx, ex);
     match ex.node {
         ast::ExprMatch(ref scrut, ref arms, source) => {
+            println!("check_expr 1");
             for arm in arms {
                 // First, check legality of move bindings.
                 check_legality_of_move_bindings(cx,
@@ -171,6 +172,7 @@ fn check_expr(cx: &mut MatchCheckCtxt, ex: &ast::Expr) {
                     None => {}
                 }
             }
+            println!("check_expr 2");
 
             let mut static_inliner = StaticInliner::new(cx.tcx, None);
             let inlined_arms = arms.iter().map(|arm| {
@@ -178,6 +180,7 @@ fn check_expr(cx: &mut MatchCheckCtxt, ex: &ast::Expr) {
                     static_inliner.fold_pat((*pat).clone())
                 }).collect(), arm.guard.as_ref().map(|e| &**e))
             }).collect::<Vec<(Vec<P<Pat>>, Option<&ast::Expr>)>>();
+            println!("check_expr 3");
 
             // Bail out early if inlining failed.
             if static_inliner.failed {
@@ -197,9 +200,11 @@ fn check_expr(cx: &mut MatchCheckCtxt, ex: &ast::Expr) {
                 // are bindings with the same name as one of the variants of said type.
                 check_for_bindings_named_the_same_as_variants(cx, &**pat);
             }
+            println!("check_expr 4");
 
             // Fourth, check for unreachable arms.
             check_arms(cx, &inlined_arms[..], source);
+            println!("check_expr 5");
 
             // Finally, check if the whole match expression is exhaustive.
             // Check for empty enum, because is_useful only works on inhabited types.
@@ -502,6 +507,9 @@ impl<'a, 'tcx> Folder for StaticInliner<'a, 'tcx> {
 fn construct_witness(cx: &MatchCheckCtxt, ctor: &Constructor,
                      pats: Vec<&Pat>, left_ty: Ty) -> P<Pat> {
     let pats_len = pats.len();
+    //println!("ctor: {:?}", ctor);
+    println!("pats: {:?}", pats);
+    println!("left_ty: {:?}", left_ty);
     let mut pats = pats.into_iter().map(|p| P((*p).clone()));
     let pat = match left_ty.sty {
         ty::TyTuple(_) => ast::PatTup(pats.collect()),
@@ -534,7 +542,9 @@ fn construct_witness(cx: &MatchCheckCtxt, ctor: &Constructor,
         }
 
         ty::TyRef(_, ty::mt { ty, mutbl }) => {
+            println!("ty.sty: {:?}", ty.sty);
             match ty.sty {
+                /*
                ty::TyArray(_, n) => match ctor {
                     &Single => {
                         assert_eq!(pats_len, n);
@@ -549,6 +559,7 @@ fn construct_witness(cx: &MatchCheckCtxt, ctor: &Constructor,
                     },
                     _ => unreachable!()
                 },
+                */
                 ty::TyStr => ast::PatWild(ast::PatWildSingle),
 
                 _ => {
@@ -635,13 +646,17 @@ fn is_useful(cx: &MatchCheckCtxt,
              -> Usefulness {
     let &Matrix(ref rows) = matrix;
     debug!("{:?}", matrix);
+    println!("v: {:?}", v);
+    println!("rows: {:?}", rows);
     if rows.is_empty() {
+        println!("rows is empty!");
         return match witness {
             ConstructWitness => UsefulWithWitness(vec!()),
             LeaveOutWitness => Useful
         };
     }
     if rows[0].is_empty() {
+        println!("rows[0] is empty!");
         return NotUseful;
     }
     assert!(rows.iter().all(|r| r.len() == v.len()));
@@ -651,14 +666,19 @@ fn is_useful(cx: &MatchCheckCtxt,
         None => v[0]
     };
     let left_ty = if real_pat.id == DUMMY_NODE_ID {
+        println!("nil!");
         ty::mk_nil(cx.tcx)
     } else {
         let left_ty = ty::pat_ty(cx.tcx, &*real_pat);
 
-        match real_pat.node {
+        println!("real_pat: {:?}", real_pat);
+        println!("left_ty: {:?}", left_ty);
+        let b = match real_pat.node {
             ast::PatIdent(ast::BindByRef(..), _, _) => ty::deref(left_ty, false).unwrap().ty,
             _ => left_ty,
-        }
+        };
+        println!("new_left_ty: {:?}", b);
+        b
     };
 
     let max_slice_length = rows.iter().filter_map(|row| match row[0].node {
@@ -666,11 +686,38 @@ fn is_useful(cx: &MatchCheckCtxt,
         _ => None
     }).max().map_or(0, |v| v + 1);
 
+    match v[0].node {
+        ast::PatLit(ref expr) => {
+            /*
+            let val = eval_const_expr(cx.tcx, expr);
+            match val {
+                ast::LitBinary(ref data) => {
+                }
+            }
+            */
+            match expr.node {
+                ast::ExprLit(ref lit) => {
+                    match lit.node {
+                        ast::LitBinary(ref data) => {
+                            println!("LitBinary!! {:?}", data);
+                        }
+                        _ => ()
+                    }
+                }
+                _ => ()
+            }
+        }
+        _ => ()
+    }
+
     let constructors = pat_constructors(cx, v[0], left_ty, max_slice_length);
+    println!("constructors: {:?}", constructors);
     if constructors.is_empty() {
         match missing_constructor(cx, matrix, left_ty, max_slice_length) {
             None => {
-                all_constructors(cx, left_ty, max_slice_length).into_iter().map(|c| {
+                println!("before all_constructors / left_ty: {:?} ({})", left_ty, max_slice_length);
+                let a = all_constructors(cx, left_ty, max_slice_length).into_iter().map(|c| {
+                    println!("middle all_constructors");
                     match is_useful_specialized(cx, matrix, v, c.clone(), left_ty, witness) {
                         UsefulWithWitness(pats) => UsefulWithWitness({
                             let arity = constructor_arity(cx, &c, left_ty);
@@ -679,14 +726,19 @@ fn is_useful(cx: &MatchCheckCtxt,
                                 let subpats: Vec<_> = (0..arity).map(|i| {
                                     pat_slice.get(i).map_or(DUMMY_WILD_PAT, |p| &**p)
                                 }).collect();
-                                vec![construct_witness(cx, &c, subpats, left_ty)]
+                                println!("before construct_witness #2 / pats: {:?} / subpats: {:?}", pats, subpats);
+                                let cc = vec![construct_witness(cx, &c, subpats, left_ty)];
+                                println!("after construct_witness #2");
+                                cc
                             };
                             result.extend(pats.into_iter().skip(arity));
                             result
                         }),
                         result => result
                     }
-                }).find(|result| result != &NotUseful).unwrap_or(NotUseful)
+                }).find(|result| result != &NotUseful).unwrap_or(NotUseful);
+                println!("after all_constructors");
+                a
             },
 
             Some(constructor) => {
@@ -697,6 +749,7 @@ fn is_useful(cx: &MatchCheckCtxt,
                         None
                     }
                 }).collect();
+                println!("a1");
                 match is_useful(cx, &matrix, v.tail(), witness) {
                     UsefulWithWitness(pats) => {
                         let arity = constructor_arity(cx, &constructor, left_ty);
@@ -711,6 +764,7 @@ fn is_useful(cx: &MatchCheckCtxt,
             }
         }
     } else {
+        println!("a2");
         constructors.into_iter().map(|c|
             is_useful_specialized(cx, matrix, v, c.clone(), left_ty, witness)
         ).find(|result| result != &NotUseful).unwrap_or(NotUseful)
@@ -721,11 +775,22 @@ fn is_useful_specialized(cx: &MatchCheckCtxt, &Matrix(ref m): &Matrix,
                          v: &[&Pat], ctor: Constructor, lty: Ty,
                          witness: WitnessPreference) -> Usefulness {
     let arity = constructor_arity(cx, &ctor, lty);
+    println!("lty: {:?}", lty);
+    println!("arity: {}", arity);
+    println!("m = {:?}", m);
     let matrix = Matrix(m.iter().filter_map(|r| {
-        specialize(cx, &r[..], &ctor, 0, arity)
+        println!("m.before = {:?}", r);
+        let d = specialize(cx, &r[..], &ctor, 0, arity);
+        println!("m.after = {:?}", d);
+        d
     }).collect());
+    println!("before specialize: {:?}", v);
     match specialize(cx, v, &ctor, 0, arity) {
-        Some(v) => is_useful(cx, &matrix, &v[..], witness),
+        Some(v) => {
+            println!("after specialize: {:?}", v);
+            println!("matrix: {:?}", matrix);
+            is_useful(cx, &matrix, &v[..], witness)
+        }
         None => NotUseful
     }
 }
@@ -856,6 +921,7 @@ pub fn specialize<'a>(cx: &MatchCheckCtxt, r: &[&'a Pat],
     let &Pat {
         id: pat_id, ref node, span: pat_span
     } = raw_pat(r[col]);
+    println!("specialize.node: {:?}", node);
     let head: Option<Vec<&Pat>> = match *node {
         ast::PatWild(_) =>
             Some(repeat(DUMMY_WILD_PAT).take(arity).collect()),
@@ -941,6 +1007,8 @@ pub fn specialize<'a>(cx: &MatchCheckCtxt, r: &[&'a Pat],
 
         ast::PatLit(ref expr) => {
             let expr_value = eval_const_expr(cx.tcx, &**expr);
+            println!("expr_value: {:?}", expr_value);
+            println!("constructor: {:?}", constructor);
             match range_covered_by_constructor(constructor, &expr_value, &expr_value) {
                 Some(true) => Some(vec![]),
                 Some(false) => None,
@@ -1035,6 +1103,7 @@ fn check_fn(cx: &mut MatchCheckCtxt,
             body: &ast::Block,
             sp: Span,
             fn_id: NodeId) {
+    println!("starting check_fn");
     match kind {
         visit::FkFnBlock => {}
         _ => cx.param_env = ParameterEnvironment::for_item(cx.tcx, fn_id),

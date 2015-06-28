@@ -42,6 +42,7 @@ pub fn check_pat<'a, 'tcx>(pcx: &pat_ctxt<'a, 'tcx>,
     debug!("check_pat(pat={:?},expected={:?})",
            pat,
            expected);
+    println!("check_pat expected: {:?}", expected);
 
     match pat.node {
         ast::PatWild(_) => {
@@ -289,6 +290,7 @@ pub fn check_pat<'a, 'tcx>(pcx: &pat_ctxt<'a, 'tcx>,
             }
         }
         ast::PatVec(ref before, ref slice, ref after) => {
+            println!("patvec 1");
             let expected_ty = structurally_resolved_type(fcx, pat.span, expected);
             let inner_ty = fcx.infcx().next_ty_var();
             let pat_ty = match expected_ty.sty {
@@ -308,6 +310,7 @@ pub fn check_pat<'a, 'tcx>(pcx: &pat_ctxt<'a, 'tcx>,
                     })
                 }
             };
+            println!("patvec 2");
 
             fcx.write_ty(pat.id, pat_ty);
 
@@ -315,6 +318,9 @@ pub fn check_pat<'a, 'tcx>(pcx: &pat_ctxt<'a, 'tcx>,
             // `eqtype` turns out to be equally general. See (*)
             // below for details.
             demand::eqtype(fcx, pat.span, expected, pat_ty);
+            println!("patvec 3");
+            println!("expected #2: {:?}", expected);
+            println!("pat_ty: {:?}", pat_ty);
 
             for elt in before {
                 check_pat(pcx, &**elt, inner_ty);
