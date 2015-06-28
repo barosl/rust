@@ -157,12 +157,14 @@ impl<'a> ParserAttr for Parser<'a> {
     /// | IDENT = lit
     /// | IDENT meta_seq
     fn parse_meta_item(&mut self) -> P<ast::MetaItem> {
+        println!("parse_meta_item");
         let nt_meta = match self.token {
             token::Interpolated(token::NtMeta(ref e)) => {
                 Some(e.clone())
             }
             _ => None
         };
+        println!("nt_meta: {:?}", nt_meta);
 
         match nt_meta {
             Some(meta) => {
@@ -175,6 +177,7 @@ impl<'a> ParserAttr for Parser<'a> {
         let lo = self.span.lo;
         let ident = panictry!(self.parse_ident());
         let name = self.id_to_interned_str(ident);
+        println!("self.token: {:?}", self.token);
         match self.token {
             token::Eq => {
                 panictry!(self.bump());

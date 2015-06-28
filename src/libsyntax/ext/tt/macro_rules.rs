@@ -133,6 +133,7 @@ impl TTMacroExpander for MacroRulesMacroExpander {
                    sp: Span,
                    arg: &[ast::TokenTree])
                    -> Box<MacResult+'cx> {
+       println!("arg(tokentree): {:?}", arg);
         generic_extension(cx,
                           sp,
                           self.name,

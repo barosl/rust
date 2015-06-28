@@ -1290,8 +1290,11 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
     fn resolve_type_vars_if_possible(&self, mut ty: Ty<'tcx>) -> Ty<'tcx> {
         debug!("resolve_type_vars_if_possible(ty={:?})", ty);
 
+        println!("resolve_type_vars_if_possible 1");
+
         // No TyInfer()? Nothing needs doing.
         if !ty.has_infer_types() {
+            println!("resolve_type_vars_if_possible 2");
             debug!("resolve_type_vars_if_possible: ty={:?}", ty);
             return ty;
         }
@@ -1299,6 +1302,7 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         // If `ty` is a type variable, see whether we already know what it is.
         ty = self.infcx().resolve_type_vars_if_possible(&ty);
         if !ty.has_infer_types() {
+            println!("resolve_type_vars_if_possible 3");
             debug!("resolve_type_vars_if_possible: ty={:?}", ty);
             return ty;
         }
@@ -1307,9 +1311,12 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         self.select_new_obligations();
         ty = self.infcx().resolve_type_vars_if_possible(&ty);
         if !ty.has_infer_types() {
+            println!("resolve_type_vars_if_possible 4");
             debug!("resolve_type_vars_if_possible: ty={:?}", ty);
             return ty;
         }
+
+        println!("resolve_type_vars_if_possible 5");
 
         // If not, try resolving *all* pending obligations as much as
         // possible. This can help substantially when there are
@@ -1317,6 +1324,8 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
         // precisely.
         self.select_obligations_where_possible();
         ty = self.infcx().resolve_type_vars_if_possible(&ty);
+
+        println!("resolve_type_vars_if_possible 6");
 
         debug!("resolve_type_vars_if_possible: ty={:?}", ty);
         ty
@@ -1329,6 +1338,9 @@ impl<'a, 'tcx> FnCtxt<'a, 'tcx> {
     /// these unconstrained type variables.
     fn resolve_type_vars_or_error(&self, ty: &Ty<'tcx>) -> mc::McResult<Ty<'tcx>> {
         let ty = self.infcx().resolve_type_vars_if_possible(ty);
+        println!("resolve_type_vars_or_error ty: {:?}", ty);
+        println!("has_infer_types: {:?}", ty.has_infer_types());
+        println!("references_error: {:?}", ty.references_error());
         if ty.has_infer_types() || ty.references_error() { Err(()) } else { Ok(ty) }
     }
 

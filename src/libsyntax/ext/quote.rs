@@ -178,7 +178,9 @@ pub mod rt {
 
     impl ToTokens for P<ast::MetaItem> {
         fn to_tokens(&self, _cx: &ExtCtxt) -> Vec<TokenTree> {
-            vec![ast::TtToken(DUMMY_SP, token::Interpolated(token::NtMeta(self.clone())))]
+            let a = token::NtMeta(self.clone());
+            println!("to_tokens: {:?}", a);
+            vec![ast::TtToken(DUMMY_SP, token::Interpolated(a))]
         }
     }
 

@@ -440,17 +440,21 @@ impl<'t,'tcx,TYPER:Typer<'tcx>> MemCategorizationContext<'t,TYPER> {
     }
 
     pub fn cat_expr(&self, expr: &ast::Expr) -> McResult<cmt<'tcx>> {
+        println!("cat_expr 1");
         match self.typer.adjustments().borrow().get(&expr.id) {
             None => {
+                println!("cat_expr 2");
                 // No adjustments.
                 self.cat_expr_unadjusted(expr)
             }
 
             Some(adjustment) => {
+                println!("cat_expr 3");
                 match *adjustment {
                     ty::AdjustDerefRef(
                         ty::AutoDerefRef {
                             autoref: None, unsize: None, autoderefs, ..}) => {
+                        println!("cat_expr 4");
                         // Equivalent to *expr or something similar.
                         self.cat_expr_autoderefd(expr, autoderefs)
                     }
@@ -458,6 +462,7 @@ impl<'t,'tcx,TYPER:Typer<'tcx>> MemCategorizationContext<'t,TYPER> {
                     ty::AdjustReifyFnPointer |
                     ty::AdjustUnsafeFnPointer |
                     ty::AdjustDerefRef(_) => {
+                        println!("cat_expr 5");
                         debug!("cat_expr({:?}): {:?}",
                                adjustment,
                                expr);
@@ -488,6 +493,7 @@ impl<'t,'tcx,TYPER:Typer<'tcx>> MemCategorizationContext<'t,TYPER> {
         debug!("cat_expr: id={} expr={:?}", expr.id, expr);
 
         let expr_ty = try!(self.expr_ty(expr));
+        println!("expr.node: {:?}", expr.node);
         match expr.node {
           ast::ExprUnary(ast::UnDeref, ref e_base) => {
             let base_cmt = try!(self.cat_expr(&**e_base));

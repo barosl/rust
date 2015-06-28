@@ -566,10 +566,12 @@ fn visit_expr(rcx: &mut Rcx, expr: &ast::Expr) {
 
     // If necessary, constrain destructors in this expression. This will be
     // the adjusted form if there is an adjustment.
+    println!("fcx: {:?}", rcx.fcx.node_ty(expr.id));
     let cmt_result = {
         let mc = mc::MemCategorizationContext::new(rcx.fcx);
         mc.cat_expr(expr)
     };
+    println!("cmt_result: {:?}", cmt_result);
     match cmt_result {
         Ok(head_cmt) => {
             check_safety_of_rvalue_destructor_if_necessary(rcx, head_cmt, expr.span);

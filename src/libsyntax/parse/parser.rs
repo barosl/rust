@@ -1500,11 +1500,13 @@ impl<'a> Parser<'a> {
                     }
 
                     token::Str_(s) => {
+                        println!("Str_");
                         (true,
                          LitStr(token::intern_and_get_ident(&parse::str_lit(s.as_str())),
                                 ast::CookedStr))
                     }
                     token::StrRaw(s, n) => {
+                        println!("StrRaw");
                         (true,
                          LitStr(
                             token::intern_and_get_ident(&parse::raw_str_lit(s.as_str())),
@@ -1536,8 +1538,12 @@ impl<'a> Parser<'a> {
         } else if try!(self.eat_keyword(keywords::False) ){
             LitBool(false)
         } else {
+            println!("parse_lit 1");
             let token = try!(self.bump_and_get());
+            println!("parse_lit 2");
+            println!("token: {:?}", token);
             let lit = try!(self.lit_from_token(&token));
+            println!("parse_lit 3");
             lit
         };
         Ok(codemap::Spanned { node: lit, span: mk_sp(lo, self.last_span.hi) })
