@@ -521,15 +521,15 @@ pub fn lstat(p: &Path) -> io::Result<FileAttr> {
 
 pub fn canonicalize(p: &Path) -> io::Result<PathBuf> {
     let path = try!(CString::new(p.as_os_str().as_bytes()));
-    let mut buf = vec![0u8; 16 * 1024];
+    let buf;
     unsafe {
-        let r = c::realpath(path.as_ptr(), buf.as_mut_ptr() as *mut _);
+        let r = c::realpath(path.as_ptr(), ptr::null_mut());
         if r.is_null() {
             return Err(io::Error::last_os_error())
         }
+        buf = CStr::from_ptr(r).to_bytes().to_vec();
+        libc::free(r as *mut _);
     }
-    let p = buf.iter().position(|i| *i == 0).unwrap();
-    buf.truncate(p);
     Ok(PathBuf::from(OsString::from_vec(buf)))
 }
 
