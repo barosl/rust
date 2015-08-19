@@ -463,7 +463,7 @@ pub fn rmdir(p: &Path) -> io::Result<()> {
 fn read_until_satisfied<F>(cb: F) -> io::Result<PathBuf>
     where F: Fn(*mut libc::c_char, libc::size_t) -> libc::ssize_t
 {
-    let mut stack_buf: [u8; 256] = unsafe { mem::uninitialized() };
+    let mut stack_buf: [u8; 10] = unsafe { mem::uninitialized() };
     let mut heap_buf: Vec<u8> = Vec::new();
 
     let mut buf_len = stack_buf.len();
@@ -483,10 +483,12 @@ fn read_until_satisfied<F>(cb: F) -> io::Result<PathBuf>
 
             unsafe { buf.set_len(buf_read); }
 
+            println!("done, buf_read = {}", buf_read);
             return Ok(PathBuf::from(OsString::from_vec(buf)));
         }
 
         buf_len *= 2;
+        println!("increase buf_len to {}", buf_len);
     }
 }
 
