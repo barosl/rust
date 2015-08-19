@@ -460,21 +460,41 @@ pub fn rmdir(p: &Path) -> io::Result<()> {
     Ok(())
 }
 
+fn read_until_satisfied<F>(cb: F) -> io::Result<PathBuf>
+    where F: Fn(*mut libc::c_char, libc::size_t) -> libc::ssize_t
+{
+    let mut stack_buf: [u8; 256] = unsafe { mem::uninitialized() };
+    let mut heap_buf: Vec<u8> = Vec::new();
+
+    let mut buf_len = stack_buf.len();
+    loop {
+        let buf = if buf_len <= stack_buf.len() {
+            &mut stack_buf[..]
+        } else {
+            let capa = heap_buf.capacity();
+            heap_buf.reserve(buf_len - capa);
+            &mut *heap_buf
+        };
+
+        let buf_read = try!(cvt(cb(buf.as_mut_ptr() as *mut libc::c_char,
+                                   buf_len as libc::size_t))) as usize;
+        if buf_read != buf_len {
+            let mut buf = buf.to_vec();
+
+            unsafe { buf.set_len(buf_read); }
+
+            return Ok(PathBuf::from(OsString::from_vec(buf)));
+        }
+
+        buf_len *= 2;
+    }
+}
+
 pub fn readlink(p: &Path) -> io::Result<PathBuf> {
     let c_path = try!(cstr(p));
     let p = c_path.as_ptr();
-    let mut len = unsafe { libc::pathconf(p as *mut _, libc::_PC_NAME_MAX) };
-    if len < 0 {
-        len = 1024; // FIXME: read PATH_MAX from C ffi?
-    }
-    let mut buf: Vec<u8> = Vec::with_capacity(len as usize);
-    unsafe {
-        let n = try!(cvt({
-            libc::readlink(p, buf.as_ptr() as *mut c_char, len as size_t)
-        }));
-        buf.set_len(n as usize);
-    }
-    Ok(PathBuf::from(OsString::from_vec(buf)))
+
+    read_until_satisfied(|buf, len| unsafe { libc::readlink(p, buf, len) })
 }
 
 pub fn symlink(src: &Path, dst: &Path) -> io::Result<()> {
